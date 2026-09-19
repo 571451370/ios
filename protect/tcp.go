@@ -1,7 +1,6 @@
 package protect
 
 import (
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -216,8 +215,4 @@ func (e *engine) forwardExit(src, dst string) {
 
 func errorsIsClosed(err error) bool {
 	return err == errClosed || err == errResumeGap
-}
-
-func logf(format string, args ...any) {
-	log.Printf("[protect] "+format, args...)
 }
