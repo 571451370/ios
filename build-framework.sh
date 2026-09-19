@@ -1,6 +1,6 @@
 #!/bin/bash
 # 在 Mac + Xcode + Go 1.20 上生成 Protect.framework / Protect.xcframework
-# Windows 无法交叉编译 iOS。
+# iOS 不支持 -buildmode=c-shared，用 c-archive 再链成动态库。
 set -euo pipefail
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "请在 Mac 上运行: ./build-framework.sh" >&2
@@ -33,21 +33,34 @@ build_one() {
   export GOOS=ios
   export GOARCH="$arch"
   export CC="$CLANG"
+  export GOCACHE="$BUILD/gocache-$sdkname-$arch"
   export CGO_CFLAGS="-isysroot $SDK -target $triple -fPIC"
-  export CGO_LDFLAGS="-isysroot $SDK -target $triple -fPIC -Wl,-install_name,@rpath/Protect.framework/Protect"
-  go build -trimpath -ldflags "-s -w" -buildmode=c-shared -o "$outdir/Protect.dylib" ./cmd/protectlib
-  mkdir -p "$outdir/Protect.framework/Headers" "$outdir/Protect.framework/Modules"
-  mv "$outdir/Protect.dylib" "$outdir/Protect.framework/Protect"
-  rm -f "$outdir/Protect.h" "$outdir/"*.h
-  cp "$ROOT/include/sdk_ios.h" "$outdir/Protect.framework/Headers/sdk_ios.h"
-  cp "$ROOT/framework/Info.plist" "$outdir/Protect.framework/Info.plist"
-  cp "$ROOT/framework/module.modulemap" "$outdir/Protect.framework/Modules/module.modulemap"
-  chmod +x "$outdir/Protect.framework/Protect"
-  install_name_tool -id @rpath/Protect.framework/Protect "$outdir/Protect.framework/Protect" || true
+  export CGO_LDFLAGS="-isysroot $SDK -target $triple -fPIC"
+  go build -trimpath -ldflags "-s -w" -buildmode=c-archive -o "$outdir/Protect.a" ./cmd/protectlib
+
+  local fw="$outdir/Protect.framework"
+  mkdir -p "$fw/Headers" "$fw/Modules"
+  "$CLANG" -dynamiclib \
+    -isysroot "$SDK" \
+    -target "$triple" \
+    -fPIC \
+    -o "$fw/Protect" \
+    -install_name "@rpath/Protect.framework/Protect" \
+    -Wl,-force_load,"$outdir/Protect.a" \
+    -framework Foundation \
+    -framework CoreFoundation \
+    -framework Security \
+    -lresolv
+  rm -f "$outdir/Protect.h" "$outdir/"*.h "$outdir/Protect.a"
+  cp "$ROOT/include/sdk_ios.h" "$fw/Headers/sdk_ios.h"
+  cp "$ROOT/framework/Info.plist" "$fw/Info.plist"
+  cp "$ROOT/framework/module.modulemap" "$fw/Modules/module.modulemap"
+  chmod +x "$fw/Protect"
+  install_name_tool -id @rpath/Protect.framework/Protect "$fw/Protect" || true
 }
 
 build_one iphoneos arm64 "$BUILD/ios-arm64"
-# Apple Silicon 模拟器
+# Apple Silicon 模拟器（失败不阻断真机包）
 build_one iphonesimulator arm64 "$BUILD/ios-arm64-sim" || true
 # Intel 模拟器
 if [[ "$(uname -m)" == "x86_64" ]]; then

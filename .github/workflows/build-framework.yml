@@ -10,10 +10,10 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go 1.20
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.20.14"
 
@@ -23,11 +23,10 @@ jobs:
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-path
           go version
+          go env GOOS GOARCH CGO_ENABLED
 
       - name: Build framework
-        run: |
-          chmod +x ./build-framework.sh
-          ./build-framework.sh
+        run: bash ./build-framework.sh
 
       - name: Pack
         run: |
@@ -36,7 +35,7 @@ jobs:
           ls -lh Protect.framework.zip Protect.xcframework.zip
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Protect-iOS-SDK
           path: |
