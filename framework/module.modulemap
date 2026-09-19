@@ -1,0 +1,5 @@
+framework module Protect {
+  umbrella header "sdk_ios.h"
+  export *
+  module * { export * }
+}

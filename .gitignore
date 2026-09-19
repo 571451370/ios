@@ -1,0 +1,11 @@
+*.framework/
+*.xcframework/
+*.framework.zip
+*.xcframework.zip
+build/
+.DS_Store
+*.exe
+*.so
+*.a
+.idea/
+*.iml

@@ -1,0 +1,46 @@
+name: Build Protect.framework
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go 1.20
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.20.14"
+
+      - name: Show toolchain
+        run: |
+          xcode-select -p
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+          go version
+
+      - name: Build framework
+        run: |
+          chmod +x ./build-framework.sh
+          ./build-framework.sh
+
+      - name: Pack
+        run: |
+          ditto -c -k --keepParent Protect.framework Protect.framework.zip
+          ditto -c -k --keepParent Protect.xcframework Protect.xcframework.zip
+          ls -lh Protect.framework.zip Protect.xcframework.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Protect-iOS-SDK
+          path: |
+            Protect.framework.zip
+            Protect.xcframework.zip
+          if-no-files-found: error
+          retention-days: 30
